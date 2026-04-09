@@ -116,6 +116,8 @@ function DisplayMovieNowPlaying(data) {
                         <div class="movie-actions">
                             <a href="#?id=${movie.id}" class="small-btn">Details</a>
                             <button class="heart-btn"><i class="far fa-heart"></i></button>
+                            
+                            <button class="watchlist-btn"><i class="fas fa-bookmark"></i></button>
                         </div>
                     </div>
                 `;
@@ -157,6 +159,8 @@ function DisplayTrendingMovie(data) {
                         <div class="movie-actions">
                             <a href="#?id=${movie.id}" class="small-btn">Details</a>
                             <button class="heart-btn"><i class="far fa-heart"></i></button>
+                            <!-- ADD BUTTON HERE -->
+   
                         </div>
                     </div>
                 `;
@@ -331,6 +335,31 @@ document.addEventListener("click", function (e) {
   }
 });
 
+// Watchlist button click handler
+document.addEventListener("click", function (e) {
+  if (e.target.closest(".watchlist-btn")) {
+    const btn = e.target.closest(".watchlist-btn");
+    const movieCard = btn.closest(".movie-card");
+    
+    if (!movieCard) return;
+
+    const link = movieCard.querySelector(".small-btn");
+    const href = link ? link.getAttribute("href") : "";
+    const movieId = href.split("=")[1];
+
+    // For static cards or dynamic cards without real TMDB id, use title
+    let movie = {
+      id: movieId || Date.now().toString(),
+      title: movieCard.querySelector("h3").textContent.trim(),
+      poster_path: movieCard.querySelector("img").src.replace(IMAGE_PATH, ""),
+      vote_average: parseFloat(movieCard.querySelector(".rating").textContent.replace("⭐", "")) || 7.5,
+      release_date: movieCard.querySelector(".movie-info p").textContent.trim()
+    };
+
+    toggleWatchlist(movie);
+  }
+});
+
 function showSuccessMessage(title, action) {
   const msg = document.createElement("div");
   msg.style.cssText = `
@@ -494,6 +523,170 @@ style.innerHTML = `
             }
         `;
 document.head.appendChild(style);
+
+// ====================== WATCHLIST FUNCTIONS ======================
+
+function isInWatchlist(movieId) {
+  const watchlist = JSON.parse(localStorage.getItem("watchlist")) || [];
+  return watchlist.some(m => m.id == movieId);
+}
+
+function toggleWatchlist(movie) {
+  let watchlist = JSON.parse(localStorage.getItem("watchlist")) || [];
+  
+  const index = watchlist.findIndex(m => m.id == movie.id);
+
+  if (index === -1) {
+    // Add to watchlist
+    watchlist.push({
+      id: movie.id,
+      title: movie.title,
+      poster: IMAGE_PATH + movie.poster_path,
+      rating: movie.vote_average ? movie.vote_average.toFixed(1) : "N/A",
+      releaseDate: movie.release_date || "Unknown"
+    });
+    showWatchlistMessage(movie.title, "added");
+  } else {
+    // Remove from watchlist
+    watchlist.splice(index, 1);
+    showWatchlistMessage(movie.title, "removed");
+  }
+
+  localStorage.setItem("watchlist", JSON.stringify(watchlist));
+  
+  // Refresh button states
+  updateAllWatchlistButtons();
+}
+
+function showWatchlistMessage(title, action) {
+  const msg = document.createElement("div");
+  msg.style.cssText = `
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: ${action === "added" ? "#8b5cf6" : "#ef4444"};
+    color: white; padding: 14px 24px; border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 10000; font-weight: 600;
+  `;
+  msg.textContent = action === "added" 
+    ? `"${title}" added to watchlist` 
+    : `"${title}" removed from watchlist`;
+
+  document.body.appendChild(msg);
+
+  setTimeout(() => {
+    msg.style.opacity = "0";
+    setTimeout(() => msg.remove(), 400);
+  }, 2500);
+}
+
+function updateAllWatchlistButtons() {
+  document.querySelectorAll('.watchlist-btn').forEach(btn => {
+    const card = btn.closest('.movie-card');
+    if (!card) return;
+    
+    const link = card.querySelector('a.small-btn');
+    if (!link) return;
+    
+    const id = link.getAttribute('href').split('=')[1];
+    if (id && isInWatchlist(id)) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+// Load Watchlist on watchlist.html
+document.addEventListener("DOMContentLoaded", function () {
+  if (window.location.href.includes("watchlist.html")) {
+    loadWatchlist();
+  }
+});
+
+function loadWatchlist() {
+  const watchlist = JSON.parse(localStorage.getItem("watchlist")) || [];
+  const grid = document.getElementById("watchlistGrid");
+
+  if (!grid) return;
+
+  grid.innerHTML = "";
+
+  if (watchlist.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1/-1; text-align:center; padding:60px 20px;">
+        <i class="fas fa-bookmark" style="font-size:50px; color:#8b5cf6; margin-bottom:20px;"></i>
+        <h3>Your watchlist is empty</h3>
+        <p>Add movies from Movies page to see them here.</p>
+      </div>`;
+    return;
+  }
+
+  watchlist.forEach(movie => {
+    const card = document.createElement("div");
+    card.className = "movie-card";
+    card.innerHTML = `
+      <div class="rating">⭐ ${movie.rating}</div>
+      <img src="${movie.poster}" alt="${movie.title}">
+      <div class="movie-info">
+        <h3>${movie.title}</h3>
+        <p>${movie.releaseDate}</p>
+        <div class="movie-actions">
+          <a href="#" class="small-btn">Details</a>
+          <button class="watchlist-btn active"><i class="fas fa-bookmark"></i></button>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// ====================== REMOVE FROM WATCHLIST ON WATCHLIST PAGE ======================
+
+document.addEventListener("click", function (e) {
+  if (e.target.closest(".watchlist-btn")) {
+    const btn = e.target.closest(".watchlist-btn");
+    const movieCard = btn.closest(".movie-card");
+
+    if (!movieCard) return;
+
+    // Check if we are on watchlist.html
+    if (window.location.href.includes("watchlist.html")) {
+      const titleElement = movieCard.querySelector("h3");
+      if (!titleElement) return;
+
+      const title = titleElement.textContent.trim();
+
+      let watchlist = JSON.parse(localStorage.getItem("watchlist")) || [];
+
+      // Remove the movie by title (since we may not have reliable ID on watchlist page)
+      watchlist = watchlist.filter(movie => movie.title !== title);
+
+      localStorage.setItem("watchlist", JSON.stringify(watchlist));
+
+      // Remove the card from the screen immediately
+      movieCard.style.transition = "all 0.3s ease";
+      movieCard.style.opacity = "0";
+      movieCard.style.transform = "scale(0.8)";
+
+      setTimeout(() => {
+        movieCard.remove();
+        
+        // If no movies left, show empty state
+        const grid = document.getElementById("watchlistGrid");
+        if (grid && grid.children.length === 0) {
+          grid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align:center; padding:60px 20px;">
+              <i class="fas fa-bookmark" style="font-size:50px; color:#8b5cf6; margin-bottom:20px;"></i>
+              <h3>Your watchlist is empty</h3>
+              <p>Add movies from Movies page to see them here.</p>
+              <a href="movies.html" class="btn btn-primary" style="margin-top:15px;">Browse Movies</a>
+            </div>`;
+        }
+      }, 300);
+
+      showWatchlistMessage(title, "removed");
+    }
+  }
+});
 
 fetchPopularMovie();
 FetchNowPlayingMovie();

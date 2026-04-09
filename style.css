@@ -550,6 +550,32 @@ a {
   border-color: rgba(255, 77, 109, 0.35);
 }
 
+.watchlist-btn {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.watchlist-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.watchlist-btn.active {
+  background: linear-gradient(135deg, #8b5cf6, #a855f7);
+  color: white;
+  border-color: rgba(139, 92, 246, 0.6);
+}
+
+.watchlist-btn.active {
+  background: linear-gradient(135deg, #826cdbc5, #e146ad);
+  color: white;
+  box-shadow: 0 0 10px rgba(37, 11, 99, 0.6);
+}
 /* Generic page content */
 .page-hero {
   padding: 28px;
